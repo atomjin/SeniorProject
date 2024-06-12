@@ -1,0 +1,17 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://bs1l4o4ge73or"
+
+[deps]
+
+files=["res://donation_receive.1200.translation"]
+
+source_file="res://donation_receive.csv"
+dest_files=["res://donation_receive.1200.translation"]
+
+[params]
+
+compress=true
+delimiter=0
