@@ -1,49 +1,74 @@
-const io = require('socket.io-client');
-const fs = require('fs');
+const io =require('socket.io-client');
+const fs =require('fs');
 const { Parser } = require('json2csv');
 
-// File path to read the token from
+//config
 const tokenFilePath = 'token.txt';
-
-// Read the token from the file
-let socketToken;
-try {
-    socketToken = fs.readFileSync(tokenFilePath, 'utf8').trim();
-    console.log('Socket token loaded successfully.');
-} catch (err) {
-    console.error('Error reading socket token from file:', err);
-    process.exit(1); // Exit the script if token cannot be read
-}
-
-// Connect to socket
-const streamlabs = io(`https://sockets.streamlabs.com?token=${socketToken}`, { transports: ['websocket'] });
-
-// File path to write the data
 const filePath = 'donation_receive.csv';
 
-console.log('Script is running. Press Ctrl + C to exit.');
-
-// Perform Action on event
-streamlabs.on('event', (eventData) => {
-    if (!eventData.for && eventData.type === 'donation') {
-        // Code to handle donation events
-        console.log(eventData);
-
-        // Extract name and amount from the donation event
-        const donations = eventData.message.map(donation => [donation.from, donation.amount]);
-
-        // Convert donation data to CSV format
-        const json2csvParser = new Parser({ header: false, eol: '\n' }); // Set end-of-line character to newline
-        const csvData = json2csvParser.parse(donations) + '\n'; // Append newline character after each set of data
-
-        // Write the CSV data to the file
-        fs.appendFile(filePath, csvData, (err) => {
-            if (err) {
-                console.error('Error writing to file:', err);
-            } else {
-                console.log('Data written to file:', donations);
-            }
-        });
-
+//read the token from file
+function readTokenFromFile(path){
+    try{
+        const token =fs.readFileSync(path,'utf8').trim();
+        console.log('soket token loaded successfully.');
+        return token;
+    } catch (err){
+        console.error('Error reading from socket token from file', err);
+        process.exit(1);
     }
-});
+}
+
+
+//Handle donation event
+function handleDonation(eventData) {
+    if (!eventData.for && eventData.type === 'donation') {
+        console.log('Donation event received:', eventData);
+
+        const donations = eventData.message.map(donation => ({
+            from: donation.from,
+            amount: donation.amount
+        }));
+
+        writeToCSV(donations);
+    }
+}
+
+//write donation data to csv file
+function writeToCSV(donations) {
+    const json2csvParser = new Parser({ header: false, eol: '\n' });
+    const csvData = json2csvParser.parse(donations) + '\n';
+
+    fs.appendFile(filePath, csvData, (err) => {
+        if (err) {
+            console.error('Error writing to file:', err);
+        } else {
+            console.log('Data written to file:', donations);
+        }
+    });
+}
+
+function main(){
+    const socketToken = readTokenFromFile(tokenFilePath);
+    const streamlabs = io(`https://sockets.streamlabs.com?token=${socketToken}`, { transports: ['websocket'] });
+
+    console.log('Script is running. Press ctrl+c to exit');
+
+    streamlabs.on('event',(eventData)=>{
+        handleDonation(eventData);
+    });
+
+    streamlabs.on('connect',()=>{
+        console.log('connected to streamslabs socket.');
+    });
+
+    streamlabs.on('disconnect',()=>{
+        console.log('disconnected from streamlabs socket.');
+    });
+
+    streamlabs.on('error',(error)=>{
+        console.error('socket error:',error);
+    });
+}
+
+main();
+    
